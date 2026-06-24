@@ -1,0 +1,157 @@
+=========================================================
+ IoT Lab - Commands to run everything on a Raspberry Pi
+=========================================================
+
+----------------------------------------------------------
+0. One-time setup (do this first)
+----------------------------------------------------------
+Update the system:
+    sudo apt update
+    sudo apt upgrade -y
+
+Install python + pip + tools:
+    sudo apt install -y python3 python3-pip git
+
+Get the code onto the Pi (pick ONE):
+  a) copy the folder over with a USB stick, or
+  b) from another machine:  scp -r iot-lab pi@<pi-ip>:~/   , or
+  c) if it's in a git repo:  git clone <repo-url>
+Then move into it (all run commands below assume you are here):
+    cd ~/iot-lab
+    ls            (you should see the .py / .ino files)
+
+----------------------------------------------------------
+Getting the python libraries (what each one is for)
+----------------------------------------------------------
+    RPi.GPIO                  -> controls the Pi's GPIO pins  (exp 6, 9, 10)
+    adafruit-circuitpython-dht-> reads the DHT11 sensor       (exp 7)
+    adafruit-blinka           -> provides the "board" module  (exp 7)
+    flask                     -> webserver                    (exp 7)
+    spidev                    -> talks to MCP3008 ADC         (exp 9)
+    requests                  -> uploads to ThingSpeak cloud  (exp 9)
+
+Easiest way (apt - already tested for the Pi):
+    sudo apt install -y python3-rpi.gpio python3-flask python3-requests
+    sudo apt install -y python3-spidev
+    sudo apt install -y libgpiod2          (needed by the DHT lib)
+
+The DHT libs are only on pip:
+    sudo pip3 install adafruit-circuitpython-dht
+    sudo pip3 install adafruit-blinka
+
+If you get an "externally-managed-environment" error on newer
+Pi OS, add the override flag:
+    sudo pip3 install adafruit-circuitpython-dht --break-system-packages
+    sudo pip3 install adafruit-blinka --break-system-packages
+
+Or just grab everything in one go:
+    sudo pip3 install RPi.GPIO flask requests spidev adafruit-circuitpython-dht adafruit-blinka
+
+Check a library actually installed:
+    pip3 show adafruit-circuitpython-dht
+
+Enable interfaces (GPIO is on by default):
+    sudo raspi-config
+    -> Interface Options
+       enable SPI  (needed for exp 9 / MCP3008)
+       enable I2C  (handy if you use I2C parts)
+    then reboot:
+    sudo reboot
+
+
+----------------------------------------------------------
+ARDUINO experiments (1, 2, 4, 5)
+----------------------------------------------------------
+These are .ino files - they run on the Arduino, NOT the Pi.
+Upload them using the Arduino IDE (on the Pi or a laptop):
+
+Install Arduino IDE on the Pi:
+    sudo apt install -y arduino
+
+Then:
+    1. Open the .ino file in the Arduino IDE
+    2. Tools -> Board -> Arduino Uno
+    3. Tools -> Port -> /dev/ttyACM0 (or /dev/ttyUSB0)
+    4. Click Upload
+    5. Open Serial Monitor (set baud to 9600) to see output
+
+If the Port is greyed out or you get "permission denied" on the
+port, add yourself to the dialout group once, then log out/in:
+    sudo usermod -a -G dialout $USER
+If no port shows at all, check the USB cable and:  ls /dev/tty*
+
+Where to see each Arduino output:
+    exp1 (LEDs)   -> watch the LEDs blink, nothing on serial
+    exp2 (pulse)  -> shown on the I2C LCD, not serial
+    exp4 (gas)    -> Serial Monitor (smoke level) + buzzer sound
+    exp5 (tilt)   -> Serial Monitor (pitch/roll)
+
+Files: led_timer.ino, pulse_sensor.ino, gas_detector.ino, accelerometer.ino
+
+Extra Arduino libraries to install (Sketch -> Include Library ->
+Manage Libraries, then search the name):
+    pulse_sensor.ino   -> "LiquidCrystal I2C" by Frank de Brabander
+    accelerometer.ino  -> "MPU6050" by Electronic Cats
+                          (also needs "I2Cdevlib" / Wire, Wire is built-in)
+LED and gas sketches need no extra libraries.
+
+
+----------------------------------------------------------
+RASPBERRY PI experiments (6, 7, 9, 10)
+----------------------------------------------------------
+Run these from the project folder (cd ~/iot-lab first).
+Each script prints to the terminal - leave it running to watch
+the output. Press Ctrl+C to stop.
+
+Exp 6 - PIR + LED:
+    sudo python3 pir_led.py
+    (waits 5s to settle, then prints "Motion detected" + lights LED.
+     wave your hand in front of the sensor to test)
+
+Exp 7 - DHT11 weather webserver:
+    cd 07_dht11_weather
+    sudo python3 app.py
+    (app.py starts a background thread that reads the sensor, and
+     serves the page using templates/main.html. sensor.py is the
+     helper module it imports - don't run it directly.)
+    Then open in a browser on the same network:
+        http://<your-pi-ip>:5000
+    (find the pi ip with:  hostname -I , or use http://localhost:5000
+     in a browser on the Pi itself)
+    The page may show 0 for a few seconds until the first good
+    DHT11 read - just wait, it auto-refreshes every 2s.
+
+Exp 9 - Smart lighting (LDR + cloud):
+    Cloud setup first (one time):
+      1. make a free account at thingspeak.com
+      2. New Channel -> tick Field1 and Field2 -> Save
+      3. copy the "Write API Key" from the API Keys tab
+    Then edit the file and paste that key into API_KEY:
+        nano smart_lighting.py     (save with Ctrl+O, exit Ctrl+X)
+    Run:
+        sudo python3 smart_lighting.py
+    Watch the LDR value print every 15s, the LED switches with
+    light, and the values appear on your ThingSpeak channel graphs.
+
+Exp 10 - Soil moisture email alert:
+    Gmail setup first (one time):
+      1. turn ON 2-Step Verification for the gmail account
+      2. Google Account -> Security -> App passwords -> generate one
+         (a normal password will NOT work)
+    Then edit the file with that app password + your addresses:
+        nano soil_moisture.py
+    Run:
+        sudo python3 soil_moisture.py
+    It prints DRY/WET each cycle and emails you when the state
+    changes. Dip the probe in water / soil to test.
+
+
+----------------------------------------------------------
+Handy stuff
+----------------------------------------------------------
+Stop a running script:        Ctrl + C
+Find the Pi's IP address:     hostname -I
+List USB / serial devices:    ls /dev/tty*
+Check a python lib installed: pip3 show RPi.GPIO
+
+NOTE: most Pi scripts use sudo because GPIO needs root access.

@@ -1,0 +1,155 @@
+=========================================================
+ IoT Lab - Wiring / Connections for each experiment
+=========================================================
+
+Pin numbers below match the code exactly.
+- Arduino pins are the numbers printed on the board.
+- Pi pins: "BCM" = GPIO number, "BOARD" = physical pin number.
+  (the code says which mode it uses)
+
+You need a breadboard + male-to-male and male-to-female
+jumper wires. Everything in one experiment must share the same
+GND (sensor, LED, Pi/Arduino all to a common ground rail).
+For LEDs put a 220-330 ohm resistor in series so they don't
+burn out. Power OFF the board while wiring, then power on.
+
+
+----------------------------------------------------------
+Exp 1 - Three LEDs (Arduino)        [led_timer.ino]
+----------------------------------------------------------
+    LED1 (+)  ->  D11  (through resistor)
+    LED2 (+)  ->  D12  (through resistor)
+    LED3 (+)  ->  D13  (through resistor)
+    all LED (-) legs -> GND
+(on for 1s, 2s, 3s in turn)
+
+
+----------------------------------------------------------
+Exp 2 - Pulse sensor + I2C 16x2 LCD (Arduino)   [pulse_sensor.ino]
+----------------------------------------------------------
+Pulse sensor:
+    Signal -> A0
+    VCC    -> 5V
+    GND    -> GND
+
+16x2 LCD with I2C backpack (only 4 wires):
+    LCD GND -> GND
+    LCD VCC -> 5V
+    LCD SDA -> A4   (Uno SDA)
+    LCD SCL -> A5   (Uno SCL)
+    (I2C address in code is 0x27 - change to 0x3F if blank.
+     run an I2C scanner sketch if unsure)
+
+
+----------------------------------------------------------
+Exp 4 - Gas sensor (MQ-2) + buzzer (Arduino)  [gas_detector.ino]
+----------------------------------------------------------
+MQ-2 gas sensor:
+    A0  -> A0 (Arduino)
+    VCC -> 5V
+    GND -> GND
+Buzzer (use an ACTIVE buzzer - beeps on its own with HIGH;
+a passive one will stay silent with this code):
+    + -> D9
+    - -> GND
+The MQ-2 has 4 pins (VCC, GND, DO, AO) - use the AO (analog) pin.
+Note: the MQ-2 needs ~20-30s to warm up before readings settle.
+(threshold in code is 800 - watch the serial monitor and tune it)
+
+
+----------------------------------------------------------
+Exp 5 - Accelerometer MPU6050 (Arduino)   [accelerometer.ino]
+----------------------------------------------------------
+MPU6050 module (I2C):
+    VCC -> 5V (module has its own regulator)
+    GND -> GND
+    SDA -> A4   (Uno SDA)
+    SCL -> A5   (Uno SCL)
+Output (pitch/roll) shows on the serial monitor at 9600 baud.
+
+
+----------------------------------------------------------
+Exp 6 - PIR sensor + LED (Raspberry Pi)   [pir_led.py]
+----------------------------------------------------------
+Mode used in code: BCM
+PIR sensor:
+    OUT -> GPIO17  (BCM 17 / physical pin 11)
+    VCC -> 5V
+    GND -> GND
+LED:
+    + -> GPIO27 (BCM 27 / physical pin 13) through resistor
+    - -> GND
+The PIR has two orange trim-pots: one sets sensitivity, the
+other how long OUT stays HIGH after motion. Start both mid-way.
+Give it ~30-60s to settle on first power-up.
+
+
+----------------------------------------------------------
+Exp 7 - DHT11 weather web (Raspberry Pi)   [app.py / sensor.py]
+----------------------------------------------------------
+DHT11 sensor (code uses board.D4 = GPIO4):
+    DATA -> GPIO4 (BCM 4 / physical pin 7)
+    VCC  -> 5V (or 3.3V)
+    GND  -> GND
+    (put a 10k resistor between DATA and VCC if the module
+     has no built-in one)
+That's the only wiring needed - the data is shown in the browser.
+
+
+----------------------------------------------------------
+Exp 9 - LDR smart lighting (Raspberry Pi)   [smart_lighting.py]
+----------------------------------------------------------
+Mode used in code: BCM
+The Pi has no analog input, so an MCP3008 ADC reads the LDR.
+
+LDR voltage divider:
+    3.3V -> LDR -> node A -> 10k resistor -> GND
+    node A -> MCP3008 CH0
+
+MCP3008 chip pin layout (16 pins, notch/dot at the top):
+    left side, top->bottom : CH0 CH1 CH2 CH3 CH4 CH5 CH6 CH7
+    right side, top->bottom: VDD VREF AGND CLK DOUT DIN CS DGND
+    (so CH0 is pin 1, VDD is pin 16, DGND is pin 9)
+
+MCP3008 -> Raspberry Pi (SPI, bus 0 dev 0):
+    VDD  -> 3.3V          VREF -> 3.3V
+    AGND -> GND           DGND -> GND
+    CLK  -> SCLK (GPIO11 / pin 23)
+    DOUT -> MISO (GPIO9  / pin 21)
+    DIN  -> MOSI (GPIO10 / pin 19)
+    CS   -> CE0  (GPIO8  / pin 24)
+LED:
+    + -> GPIO18 (BCM 18 / physical pin 12) through resistor
+    - -> GND
+Wiring check: covering the LDR (dark) should turn the LED on.
+If it's backwards, swap the LDR and the 10k resistor positions.
+(enable SPI in raspi-config first - see commands.txt)
+
+
+----------------------------------------------------------
+Exp 10 - Soil moisture sensor (Raspberry Pi)  [soil_moisture.py]
+----------------------------------------------------------
+Mode used in code: BCM
+Soil moisture module (digital output):
+    DO  -> GPIO17 (BCM 17 / physical pin 11)
+    VCC -> 3.3V or 5V
+    GND -> GND
+    (turn the little pot on the module to set the dry/wet point;
+     DO goes HIGH when soil is dry)
+
+
+----------------------------------------------------------
+Quick BCM -> physical pin reference (the ones used here)
+----------------------------------------------------------
+    GPIO4  = pin 7      (DHT11 data, exp 7)
+    GPIO17 = pin 11     (PIR / soil sensor)
+    GPIO18 = pin 12     (LED, exp 9)
+    GPIO27 = pin 13     (LED, exp 6)
+    SPI for MCP3008 (exp 9):
+    GPIO8  (CE0)  = pin 24
+    GPIO9  (MISO) = pin 21
+    GPIO10 (MOSI) = pin 19
+    GPIO11 (SCLK) = pin 23
+    5V     = pin 2 or 4
+    3.3V   = pin 1 or 17
+    GND    = pin 6, 9, 14, 20, 25, 30, 34, 39
